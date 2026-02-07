@@ -1,41 +1,62 @@
-# Drug Reviews NLP - Comparative Analysis of Text Classification with Multiple Embeddings
+# Deep Learning for Drug Review Sentiment Analysis
 
-## Project Overview
+This project evaluates GRU, LSTM, and Transformer architectures on the **UCI Drug Review Dataset (Drugs.com)** using a Hybrid Multi-Embedding approach.
 
-This is a group project comparing text classification performance using different deep learning models (RNN, LSTM, GRU, Transformer) with team-selected embedding techniques.
+## Dataset
 
-**Team Focus:**
-- **Traditional ML Model**: Logistic Regression / SVM / Random Forest (to be assigned)
-- **RNN Models**: [Team member name]
-- **LSTM Models**: [Team member name]
-- **GRU Models**: Essie (this repository)
-- **Transformer Models**: [Team member name]
+- **Source**: `/data/drugsComTrain_raw.csv` (~161k rows after filtering)
+- **Task**: Binary Classification
+  - **Positive**: Rating >= 7
+  - **Negative**: Rating <= 4
+  - **Neutral (Dropped)**: Rating 5-6
+- **Columns**: patient_id, drugName, condition, review, rating, date, usefulCount, review_length
+
+## Architecture
+
+We use a **Hybrid Multi-Embedding** approach combining sequence data with auxiliary features:
+
+1. **Sequence Input (100 tokens)**: 
+   - Tokenized reviews processed through Keras Tokenizer
+   - Padded to fixed length (100)
+   - Fed to Embedding layer + GRU/LSTM layers
+
+2. **TF-IDF Input (2000 features)**:
+   - Statistical text vectorization using sklearn
+   - Fed to Dense layers in auxiliary branch
+   - Concatenated with sequence output before final classification
+
+3. **Output**: Binary classification (Positive/Negative)
 
 ## Repository Structure
 
 ```
 .
 ├── README.md                          # This file
-├── requirements.txt                   # Python dependencies
+├── preprocessing_pipeline.py          # Source of truth for data preprocessing
+├── EDA_standard.py                    # Exploratory data analysis
+├── quick_setup.md                     # Quick setup guide
+├── requirements.txt                   # Dependencies
 ├── data/                              # Data directory
-│   └── README.md                      # Data documentation
+│   ├── README.md
+│   ├── drug_review_train.csv
+│   ├── drug_review_validation.csv
+│   └── drug_review_test.csv
 ├── src/                               # Shared utility modules
 │   ├── __init__.py
-│   ├── data_utils.py                  # Data loading and management
-│   ├── preprocessing.py               # Text preprocessing
-│   └── eda.py                         # Exploratory data analysis
-├── embeddings/                        # Embedding implementations (SHARED)
-│   ├── tfidf_embedding.py             # TF-IDF vectorization
-│   ├── word2vec_embedding.py          # Word2Vec (Skip-gram SELECTED)
-│   └── glove_embedding.py             # GloVe embedding (SELECTED)
-├── notebooks/                         # Individual team member notebooks
-│   ├── 0_shared_eda_and_preprocessing.ipynb   # Shared preprocessing pipeline
-│   ├── 1_gru_template.ipynb                   # GRU template (select embedding)
-│   ├── gru_word2vec_skipgram.ipynb    # GRU with Word2Vec Skip-gram (PRIMARY)
-│   ├── gru_glove.ipynb                # GRU with GloVe (SECONDARY)
-│   └── gru_tfidf.ipynb                # GRU with TF-IDF (BASELINE)
-└── config/                            # Configuration files
-    └── hyperparameters.yaml           # Model hyperparameters
+│   ├── data_utils.py
+│   ├── preprocessing.py
+│   └── eda.py
+├── embeddings/                        # Embedding implementations
+│   ├── __init__.py
+│   ├── tfidf_embedding.py
+│   ├── word2vec_embedding.py
+│   └── glove_embedding.py
+├── notebooks/                         # Team member notebooks
+│   ├── 0_shared_eda_and_preprocessing.ipynb
+│   └── 1_gru_embeddings.ipynb
+└── config/                            # Configuration
+    ├── EMBEDDINGS_SELECTED.md
+    └── hyperparameters.md
 ```
 
 ## Quick Start
@@ -43,74 +64,129 @@ This is a group project comparing text classification performance using differen
 ### 1. Installation
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Load and Explore Data
+### 2. Verify Data
 
-```python
-import pandas as pd
-from src.eda import EDAAnalyzer
+Run the EDA to validate the data schema:
 
-# Load TSV data
-df = pd.read_csv('data/drugLibTrain_raw.tsv', sep='\t')
-
-print(f"Dataset size: {df.shape[0]} samples, {df.shape[1]} features")
-print(f"Columns: {list(df.columns)}")
-
-# Explore data
-analyzer = EDAAnalyzer(df)
-analyzer.set_columns(text_column='commentsReview', label_column='rating')
-print(analyzer.generate_report())
-
-# Visualize
-analyzer.plot_label_distribution()
-analyzer.plot_text_length_distribution()
+```bash
+python EDA_standard.py
 ```
 
-### 3. Preprocess Text
+This generates:
+- `sentiment_distribution.png`
+- `review_length_distribution.png`
+
+### 3. Load Data for Modeling
+
+All team members must use `preprocessing_pipeline.py`:
 
 ```python
-from src.preprocessing import TextPreprocessor, get_preprocessor
+from preprocessing_pipeline import get_data_for_model
 
-# Use a predefined configuration
-preprocessor = get_preprocessor("moderate")  # Options: 'minimal', 'moderate', 'aggressive'
+# Load and preprocess data
+X_seq, X_tfidf, y, vocab_size, tokenizer, tfidf = get_data_for_model()
 
-# Or create custom preprocessing
-preprocessor = TextPreprocessor(
-    lowercase=True,
-    remove_urls=True,
-    remove_stopwords=True,
-    lemmatize=True
-)
-
-# Process single text
-cleaned = preprocessor.process("This is a test review!")
-
-# Process batch
-texts = ["Review 1", "Review 2"]
-processed = preprocessor.process_batch(texts)
+# X_seq: (N, 100) - Sequence input for GRU/LSTM
+# X_tfidf: (N, 2000) - TF-IDF input for Dense layers
+# y: (N,) - Binary sentiment labels
+# vocab_size: Tokenizer vocabulary size
+# tokenizer: Fitted Keras Tokenizer for inference
+# tfidf: Fitted TfidfVectorizer for inference
 ```
 
-### 4. Create Dataset Object
+## Model Architecture (Hybrid Sequence Model)
 
+For Sequence Models (GRU/LSTM/Transformer implementations), follow this structure:
+
+### Input Branch 1: Sequence Processing
+```
+Input(shape=(100,))
+  ↓
+Embedding(word2vec)
+Embedding(glove)
+  ↓
+Concatenate embeddings
+  ↓
+GRU(64, return_sequences=False)
+  ↓
+[sequence_output shape: (batch_size, 64)]
+```
+
+### Input Branch 2: TF-IDF Processing
+```
+Input(shape=(2000,))
+  ↓
+Dense(32, relu)
+  ↓
+[tfidf_output shape: (batch_size, 32)]
+```
+
+### Merge & Output
+```
+Concatenate([sequence_output, tfidf_output])
+  ↓
+Dense(1, sigmoid)
+  ↓
+Binary output (Positive/Negative)
+```
+
+## Preprocessing Pipeline Details
+
+### Target Generation
 ```python
-from src.data_utils import create_dataset_from_dataframe
-
-dataset = create_dataset_from_dataframe(
-    df=df,
-    text_column='commentsReview',
-    label_column='rating',
-    rating_column='rating',
-    drug_column='urlDrugName'
-)
-
-# Get processed dataset
-preprocessor = get_preprocessor("moderate")
-processed_texts = preprocessor.process_batch(dataset.get_unprocessed())
-dataset.set_processed_texts(processed_texts)
+rating >= 7 → 1 (Positive)
+rating <= 4 → 0 (Negative)
+rating 5 or 6 → Dropped (Neutral)
 ```
+
+### Sequence Input
+- **Tokenizer**: Keras Tokenizer with 20,000 max words
+- **Sequences**: Convert text to token sequences
+- **Padding**: `pad_sequences(maxlen=100, padding='post', truncating='post')`
+- **Output Shape**: (Batch_Size, 100)
+
+### Auxiliary Input
+- **Vectorizer**: TF-IDF with 2,000 features
+- **Stop words**: English stop words removed
+- **Output Shape**: (Batch_Size, 2000)
+
+## Configuration
+
+### Global Parameters (in `preprocessing_pipeline.py`)
+- `MAX_LEN`: 100 (sequence length)
+- `MAX_WORDS`: 20,000 (tokenizer vocab size)
+- `TFIDF_FEATURES`: 2,000 (TF-IDF dimensions)
+
+### Hyperparameters (in notebook)
+- GRU units: 64
+- Dropout rate: 0.3
+- Learning rate: Default Adam optimizer
+- Batch size: 32
+- Epochs: 20+
+
+## Team Instructions
+
+### For GRU/LSTM/Transformer Implementation:
+
+1. **Import the pipeline**:
+   ```python
+   from preprocessing_pipeline import get_data_for_model
+   X_seq, X_tfidf, y, vocab_size, tokenizer, tfidf = get_data_for_model()
+   ```
+
+2. **Build your model** with the Hybrid architecture above
+
+3. **Use both inputs**:
+   - Feed `X_seq` to the sequence branch (Embedding → GRU/LSTM)
+   - Feed `X_tfidf` to the auxiliary branch (Dense layers)
+   - Merge both outputs before final classification
+
+4. **Train and evaluate** on test set
+
+5. **Document results** comparing different embeddings
 
 ## Shared Modules
 
@@ -185,104 +261,15 @@ sentence_vectors = embed.encode_texts(texts)
 
 ### For Team Members Using Shared Code:
 
-1. **Set up your notebook** in `notebooks/` folder:
-   ```python
-   import sys
-   sys.path.append('../')
-   from src.data_utils import DataLoader, create_dataset_from_dataframe
-   from src.preprocessing import get_preprocessor
-   from src.eda import EDAAnalyzer
-   from embeddings.word2vec_embedding import Word2VecEmbedding
-   ```
+1. **Import the pipeline and build your model** with the Hybrid architecture
 
-2. **Load and preprocess data** using shared utilities
+## References
 
-3. **Create embeddings** using shared embedding classes
-
-4. **Build your model** (RNN/LSTM/GRU/Transformer) with the embedded data
-
-5. **Document results** in a results file for synthesis
-
-## Finalized Embeddings (Team Decision)
-
-**Selected for all models (GRU, RNN, LSTM, Transformer):**
-1. [DONE] Word2Vec Skip-gram (skipgram_medium) - Primary semantic embedding
-2. [DONE] GloVe (medium) - Global context embedding
-3. [DONE] TF-IDF (balanced) - Statistical baseline embedding
-
-**Why these three?**
-- Represent different embedding philosophies (semantic vs. global vs. statistical)
-- Word2Vec Skip-gram: Best for understanding drug/symptom/benefit relationships
-- GloVe: Captures global patterns in medical language
-- TF-IDF: Provides interpretable baseline for model comparison
-
-**Next: Each member implements their model using all 3 embeddings**
-
-## Documentation Standards
-
-- Use docstrings for all functions and classes
-- Include type hints
-- Add usage examples in docstrings
-- Update README when adding new utilities
-
-## Git Workflow
-
-```bash
-# Pull latest changes
-git pull origin main
-
-# Create feature branch
-git checkout -b feature/your-feature
-
-# Work on your contributions
-# Commit with clear messages
-git commit -m "Add GRU model with Word2Vec embeddings"
-
-# Push and create PR
-git push origin feature/your-feature
-```
-
-## Team Contribution Tracking
-
-**Important**: Maintain a contribution tracker file to document:
-- Who implemented what module
-- Dates and hours spent
-- Specific contributions to reproducibility
-
-This is required for fair grading.
-
-## References and Citations
-
-Document all papers and resources used in:
-- Code comments
-- Docstring references
-- Final report bibliography
-
-## Troubleshooting
-
-### NLTK Data Not Found
-```python
-import nltk
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-```
-
-### Import Errors
-Make sure you're running from the correct directory and the `src/` folder is in your Python path.
-
-### Data Loading Issues
-Verify the data path and column names match your CSV structure.
-
-## Project Phases
-
-1. **Phase 1** [COMPLETED]: Finalize embeddings (Word2Vec Skip-gram, GloVe, TF-IDF) and implement shared modules
-2. **Phase 2** [IN PROGRESS]: Each member creates ONE notebook implementing their model with all 3 embeddings
-3. **Phase 3** [PENDING]: Run experiments and collect cross-embedding results
-4. **Phase 4** [PENDING]: Create comparison tables and visualizations
-5. **Phase 5** [PENDING]: Write comprehensive academic report with results
+- Dataset: UCI Drug Review Dataset (Drugs.com reviews)
+- Text Processing: TensorFlow/Keras, scikit-learn
+- Models: GRU/LSTM/Transformer attention mechanisms
 
 ---
 
-**Last Updated**: February 6, 2026  
-**Group Assignment**: Machine Learning Techniques I - Formative 2
+**Last Updated**: February 7, 2026  
+**Status**: Active Development - Hybrid Model Architecture
