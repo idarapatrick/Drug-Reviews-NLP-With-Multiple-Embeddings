@@ -94,7 +94,10 @@ EMBEDDING_CONFIG = 'balanced'
 - [ ] Essie: Create `gru_word2vec_skipgram.ipynb` (Word2Vec Skip-gram)
 - [ ] Essie: Create `gru_glove.ipynb` (GloVe)
 - [ ] Essie: Create `gru_tfidf.ipynb` (TF-IDF)
-- [ ] Other members: Create RNN/LSTM/Transformer variants with same 3 embeddings
+- [x] Gershom: Create `lstm_word2vec_skipgram.ipynb` (Word2Vec Skip-gram) - READY
+- [x] Gershom: Create `lstm_glove.ipynb` (GloVe) - READY
+- [x] Gershom: Create `lstm_tfidf.ipynb` (TF-IDF) - READY
+- [ ] Other members: Create RNN/Transformer variants with same 3 embeddings
 
 ### Phase 3: Experimentation (PENDING)
 - [ ] Run all models with all 3 embeddings

@@ -7,8 +7,8 @@ This is a group project comparing text classification performance using differen
 **Team Focus:**
 - **Traditional ML Model**: Logistic Regression / SVM / Random Forest (to be assigned)
 - **RNN Models**: [Team member name]
-- **LSTM Models**: [Team member name]
-- **GRU Models**: Essie (this repository)
+- **LSTM Models**: Gershom (BiLSTM supported)
+- **GRU Models**: Essie
 - **Transformer Models**: [Team member name]
 
 ## Repository Structure
