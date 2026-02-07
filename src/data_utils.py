@@ -36,7 +36,7 @@ class DataLoader:
             DataFrame with loaded data
         """
         if self.data is None:
-            self.data = pd.read_csv(self.data_path)
+            self.data = pd.read_csv(self.data_path, sep='\t')
         return self.data
     
     def get_info(self) -> Dict:

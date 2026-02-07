@@ -7,9 +7,25 @@ This module provides utilities for:
 - Text preprocessing and cleaning
 """
 
-from .data_utils import DataLoader, DrugReviewDataset
-from .eda import EDAAnalyzer
-from .preprocessing import TextPreprocessor
-
 __version__ = "1.0.0"
-__all__ = ["DataLoader", "DrugReviewDataset", "EDAAnalyzer", "TextPreprocessor"]
+
+# Optional imports - only import if modules exist
+__all__ = []
+
+try:
+    from .data_utils import DataLoader, DrugReviewDataset
+    __all__.extend(["DataLoader", "DrugReviewDataset"])
+except ImportError:
+    pass
+
+try:
+    from .eda import EDAAnalyzer
+    __all__.append("EDAAnalyzer")
+except ImportError:
+    pass
+
+try:
+    from .preprocessing import TextPreprocessor
+    __all__.append("TextPreprocessor")
+except ImportError:
+    pass
