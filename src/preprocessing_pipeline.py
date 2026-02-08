@@ -8,6 +8,11 @@ consistently and prepares both sequence data and TF-IDF representations.
 
 import pandas as pd
 import numpy as np
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,6 +23,116 @@ from pathlib import Path
 MAX_LEN = 100
 MAX_WORDS = 20000
 TFIDF_FEATURES = 2000
+
+
+# Preprocessing class for LSTM notebooks
+class TextPreprocessor:
+    """
+    Text preprocessing for tokenization and cleaning.
+    Compatible with Word2Vec, GloVe, and TF-IDF embeddings.
+    """
+    def __init__(
+        self,
+        lowercase=True,
+        remove_stopwords=False,
+        lemmatize=False,
+        remove_punctuation=False
+    ):
+        self.lowercase = lowercase
+        self.remove_stopwords = remove_stopwords
+        self.lemmatize = lemmatize
+        self.remove_punctuation = remove_punctuation
+        
+        if self.remove_stopwords:
+            self.stop_words = set(stopwords.words('english'))
+        if self.lemmatize:
+            self.lemmatizer = WordNetLemmatizer()
+    
+    def preprocess_text(self, text):
+        """Preprocess a single text string."""
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Lowercase
+        if self.lowercase:
+            text = text.lower()
+        
+        # Remove URLs
+        text = re.sub(r'http\S+|www\S+', '', text)
+        
+        # Remove HTML tags
+        text = re.sub(r'<.*?>', '', text)
+        
+        # Remove extra whitespace
+        text = ' '.join(text.split())
+        
+        return text
+    
+    def get_tokens(self, text):
+        """Convert text to list of tokens."""
+        text = self.preprocess_text(text)
+        
+        # Tokenize
+        tokens = word_tokenize(text)
+        
+        # Remove punctuation
+        if self.remove_punctuation:
+            tokens = [t for t in tokens if t.isalnum()]
+        
+        # Remove stopwords
+        if self.remove_stopwords:
+            tokens = [t for t in tokens if t not in self.stop_words]
+        
+        # Lemmatize
+        if self.lemmatize:
+            tokens = [self.lemmatizer.lemmatize(t) for t in tokens]
+        
+        return tokens
+    
+    def get_tokens_batch(self, texts):
+        """Convert list of texts to list of token lists."""
+        return [self.get_tokens(text) for text in texts]
+    
+    def preprocess_batch(self, texts):
+        """Preprocess a batch of texts."""
+        return [self.preprocess_text(text) for text in texts]
+
+
+def get_preprocessor(config='moderate'):
+    """
+    Get a text preprocessor with predefined configuration.
+    
+    Args:
+        config: 'minimal', 'moderate', or 'aggressive'
+    
+    Returns:
+        TextPreprocessor instance
+    """
+    configs = {
+        'minimal': {
+            'lowercase': True,
+            'remove_stopwords': False,
+            'lemmatize': False,
+            'remove_punctuation': False
+        },
+        'moderate': {
+            'lowercase': True,
+            'remove_stopwords': True,
+            'lemmatize': False,
+            'remove_punctuation': False
+        },
+        'aggressive': {
+            'lowercase': True,
+            'remove_stopwords': True,
+            'lemmatize': True,
+            'remove_punctuation': True
+        }
+    }
+    
+    if config not in configs:
+        raise ValueError(f"Unknown config: {config}. Choose from {list(configs.keys())}")
+    
+    return TextPreprocessor(**configs[config])
 
 
 def load_and_clean_csv(filepath):
